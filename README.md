@@ -1,46 +1,48 @@
 # ObsFrame
 
-Рамка и панель управления записью для [OBS Studio](https://obsproject.com/) в духе Bandicam: видно, какая часть экрана записывается, а запись можно запускать, ставить на паузу и останавливать прямо с панели над рамкой.
+[Русская версия](README.ru.md)
 
-*A Bandicam-style on-screen frame and recording control bar for OBS Studio on Windows (obs-websocket v5).*
+A Bandicam-style on-screen frame and recording control bar for [OBS Studio](https://obsproject.com/) on Windows. You always see which part of the screen is being recorded, and you can start, pause and stop recording from the bar above the frame.
 
-## Возможности
-- **Рамка** вокруг записываемой области (это обрезка источника «Захват экрана» в текущей сцене). Цвет показывает состояние: синяя — ожидание, красная — запись, жёлтая — пауза. Клики проходят сквозь рамку.
-- **Панель** над рамкой: индикатор, таймер и размер файла, кнопки «Запись/Стоп», «Пауза/Продолжить», «☰ Видео», «📁», текущий размер области и «✕».
-- **Изменение области мышью**, пока запись не идёт: перетащите панель за надпись, чтобы сдвинуть область, или цветной уголок справа внизу, чтобы изменить размер. Обрезка и разрешение кадра сразу применяются в OBS.
-- **Список записей** («☰ Видео») из папки записей OBS: дата, длительность, размер. Двойной клик или Enter — воспроизвести, F2 — переименовать, Del — удалить в корзину. Список обновляется сам.
-- **Ничего из оверлея не попадает в запись**: все окна помечены `WDA_EXCLUDEFROMCAPTURE`. Поэтому их не видно и на скриншотах, и в программах удалённого доступа.
+## Features
+- **Frame** around the recorded area (the crop of the "Display Capture" source in the current scene). Its colour shows the state: blue — idle, red — recording, yellow — paused. Clicks pass through it.
+- **Control bar** above the frame: indicator, timer and file size, buttons Record/Stop, Pause/Resume, "☰ Videos", "📁", the current area size and "✕".
+- **Move and resize the area with the mouse** while not recording: drag the bar by its label to move the area, drag the coloured grip at the bottom-right corner to resize it. The crop and the canvas size are applied in OBS immediately.
+- **Recordings list** ("☰ Videos") from the OBS recording folder: date, duration, size. Double-click or Enter to play, F2 to rename, Del to move to the Recycle Bin. The list refreshes itself.
+- **Nothing from the overlay gets into the recording**: all its windows are marked `WDA_EXCLUDEFROMCAPTURE`, so they are also invisible on screenshots and in remote-desktop tools.
+- **Language**: Russian when Windows UI is Russian, English otherwise. Override with the environment variable `OBSFRAME_LANG=en` or `ru`.
 
-## Требования
-- Windows 10 2004 или новее, либо Windows 11.
-- OBS Studio 28+ со встроенным obs-websocket. Включите его: **Сервис → Настройки WebSocket-сервера → Включить**. Порт и пароль программа сама читает из `%APPDATA%\obs-studio\plugin_config\obs-websocket\config.json`.
-- В текущей сцене OBS должен быть источник «Захват экрана» (`monitor_capture`).
+## Requirements
+- Windows 10 2004 or newer, or Windows 11.
+- OBS Studio 28+ with the built-in obs-websocket. Enable it: **Tools → WebSocket Server Settings → Enable WebSocket server**. ObsFrame reads the port and password from `%APPDATA%\obs-studio\plugin_config\obs-websocket\config.json`.
+- A "Display Capture" (`monitor_capture`) source in the current OBS scene.
 
-## Установка
-1. Скачайте `ObsFrame.exe` из [Releases](../../releases) или соберите его сами (см. ниже).
-2. Положите файл в любую папку и запускайте так:
-   - `ObsFrame.exe --with-obs` — запустит OBS, если он ещё не открыт, и рамку (удобно для ярлыка на рабочем столе);
-   - `ObsFrame.exe` — только рамка. Она ждёт OBS и показывается, пока он открыт (удобно для автозагрузки).
+## Installation
+1. Download `ObsFrame.exe` from [Releases](../../releases) or build it yourself (see below).
+2. Put it in any folder and run it as:
+   - `ObsFrame.exe --with-obs` — starts OBS if it is not running yet, plus the frame (handy for a desktop shortcut);
+   - `ObsFrame.exe` — the frame only; it waits for OBS and is shown while OBS is open (handy for autostart).
 
-Повторный запуск не создаёт вторую копию. Закрыть рамку: «✕» на панели или правый клик → «Выход из рамки».
+A second launch never creates a second copy. To close the frame, click "✕" on the bar or right-click the bar → "Exit frame".
 
-## Сборка
-Нужен только компилятор .NET Framework, который входит в Windows:
+## Building
+Only the .NET Framework compiler that ships with Windows is needed:
 ```
 build.cmd
 ```
 
-## Файлы
-| Файл | Назначение |
+## Files
+| File | Purpose |
 |---|---|
-| `ObsFrame.cs` | весь код: WinForms-оверлей и минимальный клиент obs-websocket v5 (C# 5) |
-| `build.cmd` | сборка `ObsFrame.exe` через `csc.exe` из `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319` |
-| `CHANGELOG.md` | история изменений |
+| `ObsFrame.cs` | all the code: WinForms overlay and a minimal obs-websocket v5 client (C# 5) |
+| `build.cmd` | builds `ObsFrame.exe` with `csc.exe` from `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319` |
+| `CHANGELOG.md` | change history |
 
-## Нюансы
-- Координаты считаются в физических пикселях (per-monitor DPI v2), так же как у OBS.
-- obs-websocket ограничивает разрешение холста 4096 px. Если область больше, кадр уменьшается пропорционально.
-- Ширина области округляется до кратной 4, высота — до чётной.
+## Notes
+- Coordinates are physical pixels (per-monitor DPI v2), the same as OBS uses.
+- obs-websocket limits the canvas to 4096 px; a larger area is scaled down proportionally.
+- The area width is rounded down to a multiple of 4 and the height to an even number.
+- Connection errors are written to `ObsFrame.log` next to the program.
 
-## Лицензия
+## License
 [MIT](LICENSE)
