@@ -50,6 +50,14 @@ static class Native
     }
 }
 
+// UI language: Russian when Windows UI is Russian, English otherwise; OBSFRAME_LANG=en|ru overrides
+static class Loc
+{
+    public static readonly bool Ru = (Environment.GetEnvironmentVariable("OBSFRAME_LANG")
+        ?? System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName) == "ru";
+    public static string L(string en, string ru) { return Ru ? ru : en; }
+}
+
 class ObsError : Exception { public ObsError(string m) : base(m) { } }
 
 // Minimal synchronous obs-websocket v5 client (https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md)
@@ -251,7 +259,7 @@ class ListForm : Form
 
     public ListForm()
     {
-        Text = "Записи OBS";
+        Text = Loc.L("OBS recordings", "Записи OBS");
         Size = new Size(820, 520);
         MinimumSize = new Size(520, 300);
         StartPosition = FormStartPosition.CenterScreen;
@@ -263,10 +271,10 @@ class ListForm : Form
         list.FullRowSelect = true;
         list.LabelEdit = true;
         list.HideSelection = false;
-        list.Columns.Add("Имя файла", 330);
-        list.Columns.Add("Дата", 140);
-        list.Columns.Add("Длительность", 100, HorizontalAlignment.Right);
-        list.Columns.Add("Размер", 100, HorizontalAlignment.Right);
+        list.Columns.Add(Loc.L("File name", "Имя файла"), 330);
+        list.Columns.Add(Loc.L("Date", "Дата"), 140);
+        list.Columns.Add(Loc.L("Duration", "Длительность"), 100, HorizontalAlignment.Right);
+        list.Columns.Add(Loc.L("Size", "Размер"), 100, HorizontalAlignment.Right);
         list.DoubleClick += delegate { Play(); };
         list.KeyDown += (s, e) =>
         {
@@ -278,11 +286,11 @@ class ListForm : Form
         list.AfterLabelEdit += OnRename;
 
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(6, 6, 6, 0) };
-        buttons.Controls.Add(Btn("▶ Воспроизвести", delegate { Play(); }));
-        buttons.Controls.Add(Btn("📁 Показать в папке", delegate { ShowInFolder(); }));
-        buttons.Controls.Add(Btn("✎ Переименовать", delegate { if (list.SelectedItems.Count == 1) list.SelectedItems[0].BeginEdit(); }));
-        buttons.Controls.Add(Btn("🗑 Удалить", delegate { Delete(); }));
-        buttons.Controls.Add(Btn("⟳ Обновить", delegate { Reload(); }));
+        buttons.Controls.Add(Btn(Loc.L("▶ Play", "▶ Воспроизвести"), delegate { Play(); }));
+        buttons.Controls.Add(Btn(Loc.L("📁 Show in folder", "📁 Показать в папке"), delegate { ShowInFolder(); }));
+        buttons.Controls.Add(Btn(Loc.L("✎ Rename", "✎ Переименовать"), delegate { if (list.SelectedItems.Count == 1) list.SelectedItems[0].BeginEdit(); }));
+        buttons.Controls.Add(Btn(Loc.L("🗑 Delete", "🗑 Удалить"), delegate { Delete(); }));
+        buttons.Controls.Add(Btn(Loc.L("⟳ Refresh", "⟳ Обновить"), delegate { Reload(); }));
 
         pathLbl.Dock = DockStyle.Top;
         pathLbl.Height = 24;
@@ -335,7 +343,7 @@ class ListForm : Form
             watcher.Path = dir;
             watcher.EnableRaisingEvents = true;
         }
-        pathLbl.Text = dir ?? "Папка записей OBS не найдена";
+        pathLbl.Text = dir ?? Loc.L("OBS recording folder not found", "Папка записей OBS не найдена");
         Reload();
         if (!Visible) Show();
         if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
@@ -363,7 +371,7 @@ class ListForm : Form
             list.Items.Add(it);
         }
         list.EndUpdate();
-        Text = "Записи OBS — " + files.Count;
+        Text = Loc.L("OBS recordings — ", "Записи OBS — ") + files.Count;
 
         // durations via the Windows shell property System.Media.Duration (100 ns units), off the UI thread
         var paths = files.ConvertAll(f => f.FullName);
@@ -403,8 +411,8 @@ class ListForm : Form
 
     static string FormatSize(long b)
     {
-        if (b >= 1L << 30) return (b / (double)(1L << 30)).ToString("0.00") + " ГБ";
-        return (b / (double)(1L << 20)).ToString("0.0") + " МБ";
+        if (b >= 1L << 30) return (b / (double)(1L << 30)).ToString("0.00") + Loc.L(" GB", " ГБ");
+        return (b / (double)(1L << 20)).ToString("0.0") + Loc.L(" MB", " МБ");
     }
 
     string Selected()
@@ -430,9 +438,9 @@ class ListForm : Form
         var paths = new List<string>();
         foreach (ListViewItem it in list.SelectedItems) paths.Add((string)it.Tag);
         if (paths.Count == 0) return;
-        var msg = paths.Count == 1 ? "Переместить в корзину «" + Path.GetFileName(paths[0]) + "»?"
-                                   : "Переместить в корзину файлов: " + paths.Count + "?";
-        if (MessageBox.Show(this, msg, "Удаление", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
+        var msg = paths.Count == 1 ? Loc.L("Move to Recycle Bin: \"", "Переместить в корзину «") + Path.GetFileName(paths[0]) + Loc.L("\"?", "»?")
+                                   : Loc.L("Move files to Recycle Bin: ", "Переместить в корзину файлов: ") + paths.Count + "?";
+        if (MessageBox.Show(this, msg, Loc.L("Delete", "Удаление"), MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
         foreach (var p in paths)
         {
             try
@@ -441,7 +449,7 @@ class ListForm : Form
                     Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
                     Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
             }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, "Не удалось удалить", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            catch (Exception ex) { MessageBox.Show(this, ex.Message, Loc.L("Could not delete", "Не удалось удалить"), MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
         Reload();
     }
@@ -456,7 +464,7 @@ class ListForm : Form
         if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name == "")
         {
             e.CancelEdit = true;
-            MessageBox.Show(this, "Недопустимое имя файла.", "Переименование");
+            MessageBox.Show(this, Loc.L("Invalid file name.", "Недопустимое имя файла."), Loc.L("Rename", "Переименование"));
             return;
         }
         try
@@ -470,7 +478,7 @@ class ListForm : Form
         catch (Exception ex)
         {
             e.CancelEdit = true;
-            MessageBox.Show(this, ex.Message, "Не удалось переименовать", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, ex.Message, Loc.L("Could not rename", "Не удалось переименовать"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 }
@@ -531,10 +539,10 @@ class App : ApplicationContext
         dot.Text = "●"; dot.AutoSize = true; dot.Font = new Font("Segoe UI", 13f); dot.Margin = new Padding(2, 3, 0, 0);
         info.AutoSize = true; info.ForeColor = Color.White; info.Font = new Font("Consolas", 11f, FontStyle.Bold); info.Margin = new Padding(0, 8, 6, 0);
         sizeLbl.AutoSize = true; sizeLbl.ForeColor = Color.Silver; sizeLbl.Font = new Font("Segoe UI", 8.5f); sizeLbl.Margin = new Padding(4, 10, 4, 0);
-        MakeButton(btnRec, "● Запись", 96);
-        MakeButton(btnPause, "❚❚ Пауза", 110);
+        MakeButton(btnRec, Loc.L("● Record", "● Запись"), 96);
+        MakeButton(btnPause, Loc.L("❚❚ Pause", "❚❚ Пауза"), 110);
         MakeButton(btnFolder, "📁", 36);
-        MakeButton(btnList, "☰ Видео", 84);
+        MakeButton(btnList, Loc.L("☰ Videos", "☰ Видео"), 84);
         MakeButton(btnClose, "✕", 30);
         btnList.Click += delegate { listForm.ShowFor(recordDir); };
         btnClose.Click += delegate { ExitThread(); };
@@ -557,15 +565,15 @@ class App : ApplicationContext
             });
         };
         var tip = new ToolTip();
-        tip.SetToolTip(btnFolder, "Открыть папку с записями");
-        tip.SetToolTip(btnList, "Список сделанных видео");
-        tip.SetToolTip(btnClose, "Закрыть рамку (снова запустить: Пуск → «Рамка OBS»)");
-        tip.SetToolTip(info, "Перетащите панель, чтобы сдвинуть область (когда запись не идёт)");
+        tip.SetToolTip(btnFolder, Loc.L("Open recordings folder", "Открыть папку с записями"));
+        tip.SetToolTip(btnList, Loc.L("List of recorded videos", "Список сделанных видео"));
+        tip.SetToolTip(btnClose, Loc.L("Close the frame (start again with ObsFrame.exe)", "Закрыть рамку (снова запустить: Пуск → «Рамка OBS»)"));
+        tip.SetToolTip(info, Loc.L("Drag the bar to move the area (while not recording)", "Перетащите панель, чтобы сдвинуть область (когда запись не идёт)"));
         flow.Controls.AddRange(new Control[] { dot, info, btnRec, btnPause, btnList, btnFolder, sizeLbl, btnClose });
         bar.Controls.Add(flow);
 
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Выход из рамки", null, delegate { ExitThread(); });
+        menu.Items.Add(Loc.L("Exit frame", "Выход из рамки"), null, delegate { ExitThread(); });
         bar.ContextMenuStrip = menu;
 
         foreach (Control c in new Control[] { flow, dot, info, sizeLbl })
@@ -688,18 +696,18 @@ class App : ApplicationContext
         if (!s.Connected)
         {
             dot.ForeColor = Color.Gray;
-            info.Text = s.Error ?? "Подключение к OBS…";
+            info.Text = s.Error ?? Loc.L("Connecting to OBS…", "Подключение к OBS…");
             btnRec.Enabled = btnPause.Enabled = btnFolder.Enabled = false;
             btnList.Enabled = recordDir != null;
         }
         else
         {
             dot.ForeColor = s.Active ? (s.Paused ? Pause : (blink ? Rec : Color.FromArgb(90, 20, 20))) : Color.Gray;
-            string state = s.Active ? (s.Paused ? "ПАУЗА " : "REC ") : "СТОП ";
+            string state = s.Active ? (s.Paused ? Loc.L("PAUSED ", "ПАУЗА ") : "REC ") : Loc.L("STOPPED ", "СТОП ");
             info.Text = state + s.Timecode + (s.Active ? "  " + FormatBytes(s.Bytes) : "");
-            btnRec.Text = s.Active ? "■ Стоп" : "● Запись";
+            btnRec.Text = s.Active ? Loc.L("■ Stop", "■ Стоп") : Loc.L("● Record", "● Запись");
             btnRec.ForeColor = s.Active ? Color.White : Color.FromArgb(255, 90, 90);
-            btnPause.Text = s.Paused ? "▶ Продолжить" : "❚❚ Пауза";
+            btnPause.Text = s.Paused ? Loc.L("▶ Resume", "▶ Продолжить") : Loc.L("❚❚ Pause", "❚❚ Пауза");
             btnRec.Enabled = btnFolder.Enabled = btnList.Enabled = true;
             btnPause.Enabled = s.Active;
         }
@@ -728,8 +736,8 @@ class App : ApplicationContext
 
     static string FormatBytes(long b)
     {
-        if (b >= 1L << 30) return (b / (double)(1L << 30)).ToString("0.00") + " ГБ";
-        return (b / (double)(1L << 20)).ToString("0.0") + " МБ";
+        if (b >= 1L << 30) return (b / (double)(1L << 30)).ToString("0.00") + Loc.L(" GB", " ГБ");
+        return (b / (double)(1L << 20)).ToString("0.0") + Loc.L(" MB", " МБ");
     }
 
     // ---------------- worker thread: talks to OBS ----------------
@@ -786,7 +794,7 @@ class App : ApplicationContext
                 obs.Dispose();
                 st.Connected = false;
                 var inner = e is AggregateException ? e.InnerException : e;
-                st.Error = inner is ObsError ? "OBS: " + inner.Message : "Нет связи с OBS, повтор…";
+                st.Error = inner is ObsError ? "OBS: " + inner.Message : Loc.L("No connection to OBS, retrying…", "Нет связи с OBS, повтор…");
                 Log(e.ToString());
                 Publish(st);
                 Thread.Sleep(1000);
@@ -820,7 +828,7 @@ class App : ApplicationContext
             @"obs-studio\plugin_config\obs-websocket\config.json");
         var cfg = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(File.ReadAllText(path));
         if (!cfg.ContainsKey("server_enabled") || !(bool)cfg["server_enabled"])
-            throw new ObsError("включите Сервис → Настройки WebSocket-сервера");
+            throw new ObsError(Loc.L("enable Tools → WebSocket Server Settings", "включите Сервис → Настройки WebSocket-сервера"));
         port = cfg.ContainsKey("server_port") ? Convert.ToInt32(cfg["server_port"]) : 4455;
         pass = cfg.ContainsKey("server_password") ? (string)cfg["server_password"] : "";
     }
@@ -861,7 +869,7 @@ class App : ApplicationContext
         {
             var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"obs-studio\bin\64bit");
             try { Process.Start(new ProcessStartInfo(Path.Combine(dir, "obs64.exe")) { WorkingDirectory = dir }); }
-            catch (Exception e) { MessageBox.Show("Не удалось запустить OBS: " + e.Message, "Рамка OBS"); }
+            catch (Exception e) { MessageBox.Show(Loc.L("Could not start OBS: ", "Не удалось запустить OBS: ") + e.Message, "ObsFrame"); }
         }
         bool created;
         using (new Mutex(true, "ObsFrameOverlaySingleInstance", out created))
