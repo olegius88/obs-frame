@@ -65,6 +65,7 @@ class ObsClient : IDisposable
     {
         Dispose();
         ws = new ClientWebSocket();
+        ws.Options.Proxy = null; // localhost: never go through a system/VPN proxy
         using (var cts = new CancellationTokenSource(3000))
             ws.ConnectAsync(new Uri("ws://127.0.0.1:" + port), cts.Token).Wait();
         var hello = Recv();
@@ -785,9 +786,10 @@ class App : ApplicationContext
                 obs.Dispose();
                 st.Connected = false;
                 var inner = e is AggregateException ? e.InnerException : e;
-                st.Error = inner is ObsError ? "OBS: " + inner.Message : "Нет связи с OBS (WebSocket)";
+                st.Error = inner is ObsError ? "OBS: " + inner.Message : "Нет связи с OBS, повтор…";
+                Log(e.ToString());
                 Publish(st);
-                Thread.Sleep(2000);
+                Thread.Sleep(1000);
                 continue;
             }
             Publish(st);
@@ -796,6 +798,21 @@ class App : ApplicationContext
     }
 
     void Publish(Status s) { lock (statusLock) status = s; }
+
+    // Connection errors go to %LOCALAPPDATA%\ObsFrame\ObsFrame.log (kept small)
+    static string lastLogged;
+    static void Log(string text)
+    {
+        if (text == lastLogged) return;
+        lastLogged = text;
+        try
+        {
+            var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ObsFrame.log");
+            if (File.Exists(path) && new FileInfo(path).Length > 256 * 1024) File.Delete(path);
+            File.AppendAllText(path, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss ") + text + Environment.NewLine);
+        }
+        catch { }
+    }
 
     static void ReadWsConfig(out int port, out string pass)
     {
